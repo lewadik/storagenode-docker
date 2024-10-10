@@ -9,3 +9,9 @@
 
 # Jetbrains
 .idea/
+
+bin/
+
+*.db
+trust-cache.json
+/test
