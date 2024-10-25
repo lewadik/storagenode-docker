@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"storj.io/common/sync2"
+	"storj.io/common/version"
 )
 
 const maxRetries = 3
@@ -69,20 +70,24 @@ func (s *Supervisor) Run(ctx context.Context) error {
 			sync2.Sleep(ctx, 30*time.Second)
 			// run the updater loop.
 			// most of the errors are logged and ignored, so we don't exit the supervisor.
-			return s.updaterLoop.Run(ctx, func(ctx context.Context) error {
-				currentVersion, err := s.process.Version(ctx)
-				if err != nil {
-					slog.Error("Failed to get current version", "error", err)
-					return nil
+			var curVersion version.SemVer
+			return s.updaterLoop.Run(ctx, func(ctx context.Context) (err error) {
+				if curVersion.IsZero() {
+					curVersion, err = s.process.Version(ctx)
+					if err != nil {
+						slog.Error("Failed to get current version", "error", err)
+						return nil
+					}
 				}
 
-				updated, err := s.updater.Update(ctx, s.process, currentVersion)
+				updated, err := s.updater.Update(ctx, s.process, curVersion)
 				if err != nil {
 					slog.Error("Failed to update process", "error", err)
 					return nil
 				}
 
 				if updated {
+					curVersion = version.SemVer{}
 					return errSupervisor.Wrap(s.process.exit())
 				}
 
