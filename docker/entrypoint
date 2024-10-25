@@ -9,10 +9,6 @@ if [ -n "${VERSION_SERVER_URL:-}" ]; then
   RUN_PARAMS="${RUN_PARAMS} --version.server-address=${VERSION_SERVER_URL}"
 fi
 
-if [ "${AUTO_UPDATE:-}" != "true" ]; then
-  AUTO_UPDATE="false"
-fi
-
 : ${STORJ_CONSOLE_ADDRESS:=0.0.0.0:14002}
 export STORJ_CONSOLE_ADDRESS
 SNO_RUN_PARAMS="${RUN_PARAMS}"
@@ -35,7 +31,6 @@ fi
 if [ -n "${LOG_LEVEL:-}" ]; then
   SNO_RUN_PARAMS="${SNO_RUN_PARAMS} --log.level=${LOG_LEVEL}"
 fi
-
 
 export STORJ_SUPERVISOR_BINARY_STORE_DIR="${BINARY_STORE_DIR}"
 export STORJ_SUPERVISOR_VERSION_SERVER_ADDRESS="${VERSION_SERVER_URL}"

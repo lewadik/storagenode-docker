@@ -14,10 +14,8 @@ RUN --mount=type=cache,target="/root/.cache/go-build" go build -o ./bin/supervis
 
 FROM --platform=${DOCKER_PLATFORM:-linux/amd64} ${DOCKER_ARCH:-amd64}/debian:bookworm-slim
 ARG VERSION_SERVER_URL
-ARG SUPERVISOR_SERVER
 ENV GOARCH=${GOARCH:-amd64} \
-    VERSION_SERVER_URL=${VERSION_SERVER_URL:-https://version.storj.io} \
-    SUPERVISOR_SERVER=${SUPERVISOR_SERVER:-unix}
+    VERSION_SERVER_URL=${VERSION_SERVER_URL:-https://version.storj.io}
 
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends ca-certificates
@@ -39,6 +37,5 @@ ENV ADDRESS="" \
     WALLET="" \
     STORAGE="2.0TB" \
     SETUP="false" \
-    AUTO_UPDATE="true" \
     LOG_LEVEL="" \
     BINARY_STORE_DIR="/app/config/bin"
