@@ -58,7 +58,6 @@ func main() {
 				return err
 			}
 
-			log.Println(cfg)
 			return execSupervisor(ctx, cfg, args)
 		},
 		DisableFlagParsing: true,

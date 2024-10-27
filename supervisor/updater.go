@@ -35,14 +35,30 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 		return false, errs.Wrap(err)
 	}
 
-	newVersion, reason, err := version.ShouldUpdateVersion(currentVersion, process.nodeID, all.Processes.Storagenode)
-	if err != nil {
-		return false, errs.Wrap(err)
-	}
+	var (
+		newVersion version.Version
+	)
 
-	if newVersion.IsZero() {
-		slog.Info(reason)
-		return false, nil
+	if currentVersion.IsZero() {
+		// check if the node qualifies for the current rollout, and if not, use the minimum version.
+		// we want to avoid any potential database mismatch issues.
+		if version.ShouldUpdate(all.Processes.Storagenode.Rollout, process.nodeID) {
+			newVersion = all.Processes.Storagenode.Suggested
+		} else {
+			newVersion = all.Processes.Storagenode.Minimum
+		}
+	} else {
+		var reason string
+		newVersion, reason, err = version.ShouldUpdateVersion(currentVersion, process.nodeID, all.Processes.Storagenode)
+		if err != nil {
+			return false, errs.Wrap(err)
+		}
+		if reason != "" {
+			slog.Info(reason)
+		}
+		if newVersion.IsZero() {
+			return false, nil
+		}
 	}
 
 	newVersionPath := prependExtension(process.binPath, newVersion.Version)
@@ -103,8 +119,10 @@ func replaceBinary(ctx context.Context, currentVersion version.SemVer, newVersio
 	}
 
 	// remove the backup binary
-	if err := os.Remove(backupPath); err != nil && !errs.Is(err, fs.ErrNotExist) {
-		slog.Warn("Error removing backup binary. Consider removing manually", "error", err)
+	if !currentVersion.IsZero() {
+		if err := os.Remove(backupPath); err != nil && !errs.Is(err, fs.ErrNotExist) {
+			slog.Warn("Error removing backup binary. Consider removing manually", "error", err)
+		}
 	}
 
 	return nil
