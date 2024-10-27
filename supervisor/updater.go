@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"io/fs"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -42,7 +41,7 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 	}
 
 	if newVersion.IsZero() {
-		log.Println(reason)
+		slog.Info(reason)
 		return false, nil
 	}
 
@@ -68,12 +67,13 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 		return false, errs.Combine(err, os.Remove(newVersionPath))
 	}
 
-	if err = copyToStore(ctx, process.storeDir, newVersionPath); err != nil {
+	if err = replaceBinary(ctx, currentVersion, newVersionPath, process.binPath); err != nil {
 		return false, errs.Wrap(err)
 	}
 
-	if err = replaceBinary(ctx, currentVersion, newVersionPath, process.binPath); err != nil {
-		return false, errs.Wrap(err)
+	if err = copyToStore(ctx, process.storeDir, process.binPath); err != nil {
+		// log the error but don't return it as it's not critical;
+		slog.Warn("Error copying binary to store.", "error", err)
 	}
 
 	return true, nil
@@ -104,7 +104,7 @@ func replaceBinary(ctx context.Context, currentVersion version.SemVer, newVersio
 
 	// remove the backup binary
 	if err := os.Remove(backupPath); err != nil && !errs.Is(err, fs.ErrNotExist) {
-		slog.Warn("Error removing backup binary", err)
+		slog.Warn("Error removing backup binary. Consider removing manually", "error", err)
 	}
 
 	return nil

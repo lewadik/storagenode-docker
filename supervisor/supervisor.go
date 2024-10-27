@@ -55,7 +55,9 @@ func (s *Supervisor) Run(ctx context.Context) error {
 			slog.Info("Starting process", slog.String("binary", s.process.binPath))
 			err := s.runProcess(ctx)
 			if err != nil {
-				slog.Error("Failed to run process", "error", err)
+				slog.Error("Process exited with error", "error", err)
+			} else {
+				slog.Info("Process exited")
 			}
 
 			if s.disableAutoRestart {
@@ -87,7 +89,9 @@ func (s *Supervisor) Run(ctx context.Context) error {
 				}
 
 				if updated {
+					// reset the current version to force a new check.
 					curVersion = version.SemVer{}
+					// exit the process to restart it with the new binary.
 					return errSupervisor.Wrap(s.process.exit())
 				}
 
