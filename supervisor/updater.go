@@ -32,10 +32,10 @@ func NewUpdater(checker *checker.Client) *Updater {
 }
 
 // Update checks if the process should be updated and updates it if necessary.
-func (u *Updater) Update(ctx context.Context, process *Process, currentVersion version.SemVer) (updated bool, err error) {
+func (u *Updater) Update(ctx context.Context, process *Process, currentVersion version.SemVer) (_ version.SemVer, _ bool, err error) {
 	all, err := u.checker.All(ctx)
 	if err != nil {
-		return false, errs.Wrap(err)
+		return version.SemVer{}, false, errs.Wrap(err)
 	}
 
 	var (
@@ -54,40 +54,40 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 		var reason string
 		newVersion, reason, err = version.ShouldUpdateVersion(currentVersion, process.nodeID, all.Processes.Storagenode)
 		if err != nil {
-			return false, errs.Wrap(err)
+			return version.SemVer{}, false, errs.Wrap(err)
 		}
 		if reason != "" {
 			slog.Info(reason)
 		}
 		if newVersion.IsZero() {
-			return false, nil
+			return version.SemVer{}, false, nil
 		}
 	}
 
 	newVersionPath := prependExtension(process.binPath, newVersion.Version)
 	if err = downloadBinary(ctx, parseDownloadURL(newVersion.URL), newVersionPath); err != nil {
-		return false, errs.Wrap(err)
+		return version.SemVer{}, false, errs.Wrap(err)
 	}
 
 	downloadedVersion, err := binaryVersion(ctx, newVersionPath)
 	if err != nil {
-		return false, errs.Combine(errs.Wrap(err), os.Remove(newVersionPath))
+		return version.SemVer{}, false, errs.Combine(errs.Wrap(err), os.Remove(newVersionPath))
 	}
 
 	slog.Info("Downloaded version.", slog.String("Version", downloadedVersion.String()))
 
 	newSemVer, err := newVersion.SemVer()
 	if err != nil {
-		return false, errs.Combine(err, os.Remove(newVersionPath))
+		return version.SemVer{}, false, errs.Combine(err, os.Remove(newVersionPath))
 	}
 
 	if newSemVer.Compare(downloadedVersion) != 0 {
 		err := errs.New("invalid version downloaded: wants %s got %s", newVersion.Version, downloadedVersion)
-		return false, errs.Combine(err, os.Remove(newVersionPath))
+		return version.SemVer{}, false, errs.Combine(err, os.Remove(newVersionPath))
 	}
 
 	if err = replaceBinary(ctx, currentVersion, newVersionPath, process.binPath); err != nil {
-		return false, errs.Wrap(err)
+		return version.SemVer{}, false, errs.Wrap(err)
 	}
 
 	if err = copyToStore(ctx, process.storeDir, process.binPath); err != nil {
@@ -95,7 +95,7 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 		slog.Warn("Error copying binary to store.", "error", err)
 	}
 
-	return true, nil
+	return newSemVer, true, nil
 }
 
 // replaceBinary replaces the binary with the new binary.

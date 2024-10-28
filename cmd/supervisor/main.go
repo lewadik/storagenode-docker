@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -44,8 +43,9 @@ func main() {
 	slog.SetDefault(slog.With("service", "supervisor"))
 
 	rootCmd := &cobra.Command{
-		Use:   "supervisor",
-		Short: "A process manager for the storagenode",
+		Use:          "supervisor",
+		Short:        "A process manager and auto-updater for the storagenode",
+		SilenceUsage: true,
 	}
 
 	var cfg config
@@ -60,7 +60,6 @@ func main() {
 			if err != nil {
 				return err
 			}
-
 			return execSupervisor(ctx, cfg, args)
 		},
 		DisableFlagParsing: true,
@@ -75,7 +74,7 @@ func main() {
 	}
 }
 
-func execSupervisor(ctx context.Context, cfg config, args []string) error {
+func execSupervisor(ctx context.Context, cfg config, args []string) (err error) {
 	if cfg.NodeID.IsZero() {
 		var err error
 		cfg.NodeID, err = identity.NodeIDFromCertPath(filepath.Join(cfg.IdentityDir, "identity.cert"))
@@ -103,18 +102,23 @@ func execSupervisor(ctx context.Context, cfg config, args []string) error {
 				return err
 			}
 		} else {
-			log.Println("Binary does not exist, downloading new binary")
+			slog.Info("Binary does not exist, downloading new binary")
 			// binary does not exist, download it
-			_, err := updater.Update(ctx, process, version.SemVer{})
+			_, _, err := updater.Update(ctx, process, version.SemVer{})
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err := supervisor.New(updater, process, cfg.Interval, cfg.DisableProcessRestartOnExit, cfg.DisableAutoupdate).Run(ctx)
+	mgr := supervisor.New(updater, process, cfg.Interval, cfg.DisableProcessRestartOnExit, cfg.DisableAutoupdate)
+	defer func() {
+		err = errs.Combine(err, mgr.Close())
+	}()
+
+	err = mgr.Run(ctx)
 	if err != nil {
-		slog.Info("Supervisor stopped", "error", err)
+		slog.Error("Supervisor stopped", "error", err)
 		return err
 	}
 

@@ -19,9 +19,9 @@ const maxRetries = 3
 
 var errSupervisor = errs.Class("supervisor")
 
-// Supervisor is a process manager for the storagenode.
+// Manager manages the storagenode process.
 // It manages only one storagenode process.
-type Supervisor struct {
+type Manager struct {
 	updater *Updater
 
 	process *Process
@@ -32,9 +32,9 @@ type Supervisor struct {
 	disableAutoUpdate  bool
 }
 
-// New creates a new supervisor.
-func New(updater *Updater, process *Process, checkInterval time.Duration, disableAutoRestart, disableAutoUpdate bool) *Supervisor {
-	return &Supervisor{
+// New creates a new process Manager.
+func New(updater *Updater, process *Process, checkInterval time.Duration, disableAutoRestart, disableAutoUpdate bool) *Manager {
+	return &Manager{
 		updater:            updater,
 		process:            process,
 		updaterLoop:        sync2.NewCycle(checkInterval),
@@ -44,7 +44,7 @@ func New(updater *Updater, process *Process, checkInterval time.Duration, disabl
 }
 
 // Run starts the supervisor
-func (s *Supervisor) Run(ctx context.Context) error {
+func (s *Manager) Run(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
@@ -85,7 +85,7 @@ func (s *Supervisor) Run(ctx context.Context) error {
 					}
 				}
 
-				updated, err := s.updater.Update(ctx, s.process, curVersion)
+				newVersion, updated, err := s.updater.Update(ctx, s.process, curVersion)
 				if err != nil {
 					slog.Error("Failed to update process", "error", err)
 					return nil
@@ -93,7 +93,7 @@ func (s *Supervisor) Run(ctx context.Context) error {
 
 				if updated {
 					// reset the current version to force a new check.
-					curVersion = version.SemVer{}
+					curVersion = newVersion
 					// exit the process to restart it with the new binary.
 					return errSupervisor.Wrap(s.process.exit())
 				}
@@ -106,7 +106,7 @@ func (s *Supervisor) Run(ctx context.Context) error {
 	return group.Wait()
 }
 
-func (s *Supervisor) runProcess(ctx context.Context) error {
+func (s *Manager) runProcess(ctx context.Context) error {
 	if err := s.process.start(ctx); err != nil {
 		return err
 	}
@@ -114,8 +114,8 @@ func (s *Supervisor) runProcess(ctx context.Context) error {
 	return s.process.wait()
 }
 
-// close stops all processes managed by the supervisor including the updater.
-func (s *Supervisor) close() error {
+// Close stops all processes managed by the supervisor including the updater.
+func (s *Manager) Close() error {
 	s.updaterLoop.Close()
 	return s.process.exit()
 }
