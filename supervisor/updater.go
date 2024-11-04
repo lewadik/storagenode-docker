@@ -32,6 +32,8 @@ func NewUpdater(checker *checker.Client) *Updater {
 }
 
 // Update checks if the process should be updated and updates it if necessary.
+// If currentVersion is zero, it will check if the node qualifies for the current rollout,
+// and if not, use the minimum version.
 func (u *Updater) Update(ctx context.Context, process *Process, currentVersion version.SemVer) (_ version.SemVer, _ bool, err error) {
 	all, err := u.checker.All(ctx)
 	if err != nil {

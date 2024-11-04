@@ -72,11 +72,17 @@ func (s *Manager) Run(ctx context.Context) error {
 	if !s.disableAutoUpdate {
 		group.Go(func() error {
 			// wait for the node to run for a while before checking for updates.
-			sync2.Sleep(ctx, 30*time.Second)
+			if !sync2.Sleep(ctx, 30*time.Second) {
+				return ctx.Err()
+			}
 			// run the updater loop.
 			// most of the errors are logged and ignored, so we don't exit the supervisor.
 			var curVersion version.SemVer
 			return s.updaterLoop.Run(ctx, func(ctx context.Context) (err error) {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
 				if curVersion.IsZero() {
 					curVersion, err = s.process.Version(ctx)
 					if err != nil {

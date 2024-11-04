@@ -93,6 +93,7 @@ func execSupervisor(ctx context.Context, cfg config, args []string) (err error) 
 	updater := supervisor.NewUpdater(versionChecker)
 
 	// check that storagenode binary exists
+	curVersion := version.SemVer{}
 	if _, err := os.Stat(cfg.BinaryLocation); err != nil {
 		// check store dir for backup binary
 		backupBinary := filepath.Join(cfg.BinaryStoreDir, "storagenode")
@@ -101,14 +102,20 @@ func execSupervisor(ctx context.Context, cfg config, args []string) (err error) 
 			if err := copyBinary(ctx, cfg.BinaryLocation, backupBinary); err != nil {
 				return err
 			}
-		} else {
-			slog.Info("Binary does not exist, downloading new binary")
-			// binary does not exist, download it
-			_, _, err := updater.Update(ctx, process, version.SemVer{})
+			curVersion, err = process.Version(ctx)
 			if err != nil {
 				return err
 			}
+		} else {
+			slog.Info("Binary does not exist, downloading new binary")
 		}
+	}
+
+	// if binary does not exist (i.e. curVersion is zero), download it.
+	// if binary is outdated, update it.
+	_, _, err = updater.Update(ctx, process, curVersion)
+	if err != nil {
+		return err
 	}
 
 	mgr := supervisor.New(updater, process, cfg.Interval, cfg.DisableProcessRestartOnExit, cfg.DisableAutoupdate)
