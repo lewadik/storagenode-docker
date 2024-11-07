@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/zeebo/errs"
 
@@ -22,6 +23,8 @@ import (
 
 type Updater struct {
 	checker *checker.Client
+
+	lastChecked time.Time
 }
 
 // NewUpdater creates a new updater.
@@ -40,9 +43,7 @@ func (u *Updater) Update(ctx context.Context, process *Process, currentVersion v
 		return version.SemVer{}, false, errs.Wrap(err)
 	}
 
-	var (
-		newVersion version.Version
-	)
+	var newVersion version.Version
 
 	if currentVersion.IsZero() {
 		// check if the node qualifies for the current rollout, and if not, use the minimum version.

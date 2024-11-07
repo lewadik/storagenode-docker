@@ -96,13 +96,16 @@ func execSupervisor(ctx context.Context, cfg config, args []string) (err error) 
 		backupBinary := filepath.Join(cfg.BinaryStoreDir, "storagenode")
 		if _, err := os.Stat(backupBinary); err == nil {
 			// copy backup binary to binary location
+			slog.Info("Copying backup binary", "backup", backupBinary, "destination", cfg.BinaryLocation)
 			if err := copyBinary(ctx, cfg.BinaryLocation, backupBinary); err != nil {
 				return err
 			}
+			slog.Info("Checking version")
 			curVersion, err = process.Version(ctx)
 			if err != nil {
 				return err
 			}
+			slog.Info("Current binary version", slog.String("version", curVersion.String()))
 		} else {
 			slog.Info("Binary does not exist, downloading new binary")
 			cfg.DisableUpdateBeforeFirstRun = false

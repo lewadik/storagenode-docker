@@ -81,9 +81,11 @@ func (s *Manager) Run(ctx context.Context) error {
 			var curVersion version.SemVer
 			return s.updaterLoop.Run(ctx, func(ctx context.Context) (err error) {
 				// wait for a while before checking for updates.
-				jitter := time.Duration(rand.Int63n(int64(s.config.CheckMaxSleep)))
-				if !sync2.Sleep(ctx, jitter) {
-					return errSupervisor.Wrap(ctx.Err())
+				if s.config.CheckMaxSleep > 0 {
+					jitter := time.Duration(rand.Int63n(int64(s.config.CheckMaxSleep)))
+					if !sync2.Sleep(ctx, jitter) {
+						return errSupervisor.Wrap(ctx.Err())
+					}
 				}
 
 				if curVersion.IsZero() {
