@@ -25,17 +25,14 @@ import (
 )
 
 type config struct {
-	Interval             time.Duration `env:"STORJ_SUPERVISOR_UPDATE_CHECK_INTERVAL" default:"15m" description:"Interval in seconds to check for updates"`
-	CheckTimeout         time.Duration `env:"STORJ_SUPERVISOR_UPDATE_CHECK_TIMEOUT" default:"1m" description:"Request timeout for checking for updates"`
-	BinaryLocation       string        `env:"STORJ_SUPERVISOR_BINARY_LOCATION" default:"/app/bin/storagenode" description:"Path to the storagenode binary"`
-	BinaryStoreDir       string        `env:"STORJ_SUPERVISOR_BINARY_STORE_DIR" default:"/app/config/bin" description:"Directory to store storagenode backup binaries"`
-	VersionServerAddress string        `env:"STORJ_SUPERVISOR_VERSION_SERVER_ADDRESS" default:"https://version.storj.io" description:"URL of the version server"`
-
-	NodeID      storj.NodeID `env:"STORJ_SUPERVISOR_NODE_ID" description:"Node ID. If not provided, it will be read from the identity file"`
-	IdentityDir string       `env:"STORJ_SUPERVISOR_IDENTITY_DIR" default:"/app/identity" description:"Path to the identity directory. Required if node ID is not provided"`
-
-	DisableProcessRestartOnExit bool `env:"STORJ_SUPERVISOR_DISABLE_PROCESS_RESTART_ON_EXIT" default:"false" description:"Disable restarting the process when it exits. Useful for running storagenode setup command"`
-	DisableAutoupdate           bool `env:"STORJ_SUPERVISOR_DISABLE_AUTOUPDATE" default:"false" description:"Disable automatic updates"`
+	supervisor.Config
+	CheckTimeout                time.Duration `env:"STORJ_SUPERVISOR_UPDATE_CHECK_TIMEOUT" default:"1m" description:"Request timeout for checking for updates"`
+	BinaryLocation              string        `env:"STORJ_SUPERVISOR_BINARY_LOCATION" default:"/app/bin/storagenode" description:"Path to the storagenode binary"`
+	BinaryStoreDir              string        `env:"STORJ_SUPERVISOR_BINARY_STORE_DIR" default:"/app/config/bin" description:"Directory to store storagenode backup binaries"`
+	VersionServerAddress        string        `env:"STORJ_SUPERVISOR_VERSION_SERVER_ADDRESS" default:"https://version.storj.io" description:"URL of the version server"`
+	NodeID                      storj.NodeID  `env:"STORJ_SUPERVISOR_NODE_ID" description:"Node ID. If not provided, it will be read from the identity file"`
+	IdentityDir                 string        `env:"STORJ_SUPERVISOR_IDENTITY_DIR" default:"/app/identity" description:"Path to the identity directory. Required if node ID is not provided"`
+	DisableUpdateBeforeFirstRun bool          `env:"STORJ_SUPERVISOR_DISABLE_UPDATE_BEFORE_FIRST_RUN" default:"false" description:"Disable updating the binary before the first run, if the binary exists"`
 }
 
 func main() {
@@ -108,17 +105,20 @@ func execSupervisor(ctx context.Context, cfg config, args []string) (err error) 
 			}
 		} else {
 			slog.Info("Binary does not exist, downloading new binary")
+			cfg.DisableUpdateBeforeFirstRun = false
 		}
 	}
 
-	// if binary does not exist (i.e. curVersion is zero), download it.
-	// if binary is outdated, update it.
-	_, _, err = updater.Update(ctx, process, curVersion)
-	if err != nil {
-		return err
+	if !cfg.DisableUpdateBeforeFirstRun {
+		// if binary does not exist (i.e. curVersion is zero), download it.
+		// if binary is outdated, update it.
+		_, _, err = updater.Update(ctx, process, curVersion)
+		if err != nil {
+			return err
+		}
 	}
 
-	mgr := supervisor.New(updater, process, cfg.Interval, cfg.DisableProcessRestartOnExit, cfg.DisableAutoupdate)
+	mgr := supervisor.New(updater, process, cfg.Config)
 	defer func() {
 		err = errs.Combine(err, mgr.Close())
 	}()

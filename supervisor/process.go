@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/zeebo/errs"
 
@@ -30,6 +32,9 @@ type Process struct {
 	args     []string
 
 	nodeID storj.NodeID
+
+	mu            sync.Mutex
+	lastRestarted time.Time
 }
 
 func NewProcess(nodeID storj.NodeID, binPath, storeDir string, args []string) *Process {
@@ -39,6 +44,14 @@ func NewProcess(nodeID storj.NodeID, binPath, storeDir string, args []string) *P
 		storeDir: storeDir,
 		args:     args,
 	}
+}
+
+// pid returns the process ID of the managed process.
+func (p *Process) pid() int {
+	if p.cmd == nil || p.cmd.Process == nil {
+		return 0
+	}
+	return p.cmd.Process.Pid
 }
 
 // start starts the process.
@@ -52,11 +65,35 @@ func (p *Process) start(ctx context.Context) (err error) {
 	p.cmd.Stdout = os.Stdout
 	p.cmd.Stderr = os.Stderr
 
-	return errProcess.Wrap(p.cmd.Start())
+	if err := p.cmd.Start(); err != nil {
+		return errProcess.Wrap(err)
+	}
+
+	p.setLastRestarted(time.Now())
+
+	return nil
+}
+
+// setLastRestarted sets the last restarted time.
+func (p *Process) setLastRestarted(t time.Time) {
+	p.mu.Lock()
+	p.lastRestarted = t.UTC()
+	p.mu.Unlock()
+}
+
+// lastRestartedTime returns the last restarted time.
+func (p *Process) lastRestartedTime() time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.lastRestarted.UTC()
 }
 
 // wait waits for the process to finish.
 func (p *Process) wait() error {
+	if p.cmd == nil {
+		return nil
+	}
+
 	defer func() {
 		p.cmd = nil
 	}()
@@ -70,6 +107,14 @@ func (p *Process) exit() error {
 		return nil
 	}
 	return errProcess.Wrap(p.cmd.Process.Signal(os.Interrupt))
+}
+
+// kill stops the process immediately.
+func (p *Process) kill() error {
+	if p.cmd == nil {
+		return nil
+	}
+	return errProcess.Wrap(p.cmd.Process.Signal(os.Kill))
 }
 
 // Version returns the version of the process.

@@ -36,10 +36,10 @@ pull-images:
 .PHONY: push-images
 push-images:
 #	$(MAKE) push-images-to-repo REPO=storjlabs
-	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-amd64 ghcr.io/storj/storagenode:${TAG}${CUSTOMTAG}-amd64
-	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-arm32v5 ghcr.io/storj/storagenode:${TAG}${CUSTOMTAG}-arm32v5
-	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-arm64v8 ghcr.io/storj/storagenode:${TAG}${CUSTOMTAG}-arm64v8
-	$(MAKE) push-images-to-repo REPO=ghcr.io/storj
+	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-amd64 ghcr.io/profclems/storagenode:${TAG}${CUSTOMTAG}-amd64
+	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-arm32v5 ghcr.io/profclems/storagenode:${TAG}${CUSTOMTAG}-arm32v5
+	docker tag storjlabs/storagenode:${TAG}${CUSTOMTAG}-arm64v8 ghcr.io/profclems/storagenode:${TAG}${CUSTOMTAG}-arm64v8
+	$(MAKE) push-images-to-repo REPO=ghcr.io/profclems
 
 .PHONY: push-images-to-repo
 push-images-to-repo: ## Push Docker images
@@ -56,3 +56,11 @@ push-images-to-repo: ## Push Docker images
 		&& docker manifest annotate ${REPO}/storagenode:$$t ${REPO}/storagenode:${TAG}${CUSTOMTAG}-arm64v8 --os linux --arch arm64 --variant v8 \
 		&& docker manifest push --purge ${REPO}/storagenode:$$t \
 	; done
+
+.PHONY: test-void
+test-void: ## Run supervisor with a void (accepts signal but does not exit) binary as storagenode
+	mkdir -p ./test/config/bin
+	cp -r ./testdata/config ./test/
+	cp -r ./testdata/identity ./test/
+	cp ./testdata/binaries/void ./test/config/bin/storagenode
+	docker compose up --build

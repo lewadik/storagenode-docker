@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+if [[ $# -eq 0 ]]; then
+  echo "No arguments provided" >&2
+  exit 1
+fi
+
+case "$1" in
+  "version")
+    echo "Version: v$VERSION"
+    exit 0
+    ;;
+  "setup")
+    echo "Setup complete"
+    exit 0
+    ;;
+  "run" | "exec")
+    # Trap signals (SIGINT and SIGTERM) but do not exit
+    trap 'echo "Got a signal from OS: $?"' INT TERM
+
+    echo "Storagenode process started"
+
+    while true; do
+      # Placeholder for actual storagenode process logic
+      echo "Storagenode process is running"
+      sleep 1
+    done
+    ;;
+  *)
+    echo "Unknown command: $1" >&2
+    exit 1
+    ;;
+esac
