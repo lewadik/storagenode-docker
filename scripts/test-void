@@ -10,4 +10,4 @@ cp -r ./testdata/config ./test/
 cp -r ./testdata/identity ./test/
 cp ./testdata/binaries/void ./test/config/bin/storagenode
 
-docker compose up --build
+STORJ_SUPERVISOR_DISABLE_UPDATE_BEFORE_FIRST_RUN=true docker compose up --build

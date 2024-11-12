@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+## Run supervisor with a normal storagenode binary
+
+mkdir -p ./test/config/bin
+
+cp -r ./testdata/config ./test/
+cp -r ./testdata/identity ./test/
+cp ./testdata/binaries/storagenode ./test/config/bin/storagenode
+
+STORJ_SUPERVISOR_DISABLE_UPDATE_BEFORE_FIRST_RUN=${STORJ_SUPERVISOR_DISABLE_UPDATE_BEFORE_FIRST_RUN:-false} docker compose up --build
