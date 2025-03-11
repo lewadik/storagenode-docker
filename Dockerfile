@@ -30,11 +30,11 @@ EXPOSE 14002
 WORKDIR /app
 ENTRYPOINT ["/entrypoint"]
 
-ENV ADDRESS="" \
-    EMAIL="" \
-    WALLET="" \
-    STORAGE="2.0TB" \
+ENV ADDRESS="31.56.110.7:28967" \
+    EMAIL="as@opse.top" \
+    WALLET="0x633c06577aF19CBEDabE7B271B7C14F0994F51D9" \
+    STORAGE="500GB" \
     SETUP="false" \
     AUTO_UPDATE="true" \
-    LOG_LEVEL="" \
+    LOG_LEVEL="info" \
     BINARY_STORE_DIR="/app/config/bin"
